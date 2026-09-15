@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Christus Muguerza — ¿En qué se está usando tu consumo de Salesforce?</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #ffffff;
+    --surface-2:      #EAF5FE;
+    --text-primary:   #001E5B;
+    --text-secondary: #244B7A;
+    --text-muted:     #5A7796;
+    --grid:           #D7ECFC;
+    --baseline:       #90D0FE;
+    --border:         #90D0FE;
+    --series-1:       #066AFE; /* azul brillante — Asistente virtual (chat) */
+    --series-2:       #04E1CB; /* verde/teal — Análisis y personalización de datos */
+    --series-3:       #FF538A; /* coral — Generación de contenido con IA */
+    --series-4:       #5A7796; /* gris azulado — Modelo anterior (histórico) */
+    --good:           #04E1CB;
+    --warning:        #FF538A;
+    --track:          #EAF5FE;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: 'Salesforce Sans', system-ui, -apple-system, "Segoe UI", sans-serif; background: #EAF5FE; color: #001E5B; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; }
+  header.top { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 3px solid #04E1CB; }
+  header.top h1 { font-size: 22px; margin: 0 0 6px; color: var(--text-primary); }
+  header.top p { margin:0; color: var(--text-secondary); font-size: 13.5px; max-width: 800px; line-height:1.5; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,30,91,0.08); }
+  .grid4 { display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 900px) { .grid4 { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 700px) { #chartGrid { grid-template-columns: 1fr !important; } }
+  .stat .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .stat .value { font-size: 24px; font-weight: 600; line-height:1.15; }
+  .stat .value .pct { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  .stat .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height:1.4; }
+  .stat .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+
+  h2.section-title { font-size: 17px; margin: 30px 0 4px; }
+  p.section-desc { margin: 0 0 14px; font-size: 13.5px; color: var(--text-secondary); max-width: 820px; line-height:1.5; }
+
+  .cols2 { display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 980px) { .cols2 { grid-template-columns: 1fr; } }
+
+  table.explain { width:100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.explain th, table.explain td { text-align:left; padding: 10px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+  table.explain th { color: var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.02em; }
+  table.explain td.num { font-variant-numeric: tabular-nums; text-align:right; white-space:nowrap; }
+  table.explain .catname { font-weight:600; display:flex; align-items:center; gap:8px; }
+  table.explain .catname .dot { flex-shrink:0; }
+  table.explain .exacttype { display:block; font-size:11px; color:var(--text-muted); font-weight:400; margin-top:2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  table.rate { width:100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.rate th, table.rate td { text-align:left; padding: 9px 10px; border-bottom: 1px solid var(--grid); word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+  table.rate th { color: var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.02em; }
+  table.rate td.num { font-variant-numeric: tabular-nums; text-align:right; white-space:nowrap; }
+  table.rate tr.notcovered td { color: var(--text-muted); font-size:12.5px; line-height:1.5; }
+  table.rate tr.notcovered td.notecell { white-space: normal; }
+
+  .chartcard { overflow-x:auto; }
+  .chartcard h3 { font-size: 14px; margin: 0 0 2px; }
+  .chartcard .note { font-size: 12px; color: var(--text-muted); margin: 2px 0 10px; }
+  svg.linechart { width:100%; height:auto; overflow:visible; min-height: 280px; }
+  .grid-line { stroke: var(--grid); stroke-width:1; }
+  .axis-lbl { fill: var(--text-muted); font-size: 10.5px; }
+  .legend { display:flex; gap:14px; margin: 8px 0 2px; font-size: 12px; color: var(--text-secondary); flex-wrap:wrap; }
+  .legend .lg-item { display:flex; align-items:center; gap:6px; }
+  .legend .sw { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .hoverdot { fill: transparent; cursor: crosshair; }
+  .chart-metrics { display:flex; gap:8px; flex-wrap:wrap; margin: 0 0 8px; }
+  .chart-metrics .chip { border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:11.5px; color:var(--text-secondary); background:var(--surface-2); }
+  .chart-tooltip {
+    position: fixed; z-index: 20; pointer-events: none;
+    background: rgba(0, 30, 91, 0.94); color: #fff; border-radius: 8px; border: 1px solid #04E1CB;
+    padding: 6px 8px; font-size: 12px; max-width: 320px; box-shadow: 0 4px 14px rgba(0,30,91,.25); display: none;
+  }
+
+  .toggle-group { display:inline-flex; border:1px solid var(--border); border-radius:999px; padding:3px; margin-bottom:14px; background:var(--surface-1); }
+  .toggle-btn { border:none; background:transparent; font-size:12.5px; font-weight:600; color:var(--text-secondary); padding:6px 14px; border-radius:999px; cursor:pointer; }
+  .toggle-btn.active { background:var(--text-primary); color:#04E1CB; }
+
+  .badge { display:inline-flex; align-items:center; gap:5px; font-size: 11px; font-weight:600; padding: 3px 10px; border-radius: 999px; border:1px solid transparent; }
+  .badge.warning { color: #C2246B; border-color: var(--warning); background: #FFF0F5; }
+  .badge.good { color: #037A6E; border-color: var(--good); background: #EAFDFB; }
+
+  .callout { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--text-secondary); line-height:1.55; margin-top: 14px; }
+  .callout b { color: var(--text-primary); }
+
+  .spike-card { border-left: 4px solid var(--series-1); }
+  .spike-card.spike-2 { border-left-color: var(--series-3); }
+  .spike-card h4 { font-size: 13.5px; margin: 0 0 6px; color: var(--text-primary); }
+  .spike-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 8px; }
+  .spike-card .spike-verify { font-size: 12px; color: var(--text-muted); font-style: italic; margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+  .footnote { font-size: 11.5px; color: var(--text-muted); margin-top: 30px; border-top:1px solid var(--border); padding-top:14px; line-height:1.6; }
+  .footnote b { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="top">
+    <h1>Christus Muguerza — ¿En qué se está usando tu consumo de Salesforce?</h1>
+    <p>Este reporte explica, en términos simples, qué está generando el consumo registrado en tu contrato desde que empezaste a usar la plataforma. Datos actualizados al 14 de septiembre de 2026.</p>
+  </header>
+
+  <div id="summaryGrid"></div>
+
+  <h2 class="section-title">Tarifario oficial de Salesforce (Rate Card)</h2>
+  <p class="section-desc">Salesforce publica un tarifario oficial ("Flex Credits Rate Card") que fija cuántos créditos cuesta cada tipo de acción de tu asistente virtual. Con esta tarifa podemos traducir los créditos que consumes en un número real de acciones ejecutadas.</p>
+
+  <div class="card">
+    <table class="rate" id="rateTable"></table>
+    <p class="note" style="margin:10px 0 0;">Fuente oficial: <b>Flex Credits Rate Card</b>, Salesforce (documento vigente al 31 de agosto de 2026). Esta tarifa aplica específicamente a las acciones de tu asistente virtual — no cubre el análisis de datos ni la generación de contenido, que se explican más abajo.</p>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3 style="font-size:14px;margin:0 0 10px;">¿Cuántas acciones representan los créditos de tu asistente?</h3>
+    <p class="note" style="margin:0 0 10px;">Usando la tarifa oficial de 20 créditos por acción (ambiente de producción), así se traduce tu consumo en número real de interacciones ejecutadas por el asistente. Se muestra por semana y por mes porque septiembre es un mes parcial (hasta el 14) y podría verse artificialmente bajo si solo se ve por mes.</p>
+    <div class="toggle-group" id="actionsToggle">
+      <button class="toggle-btn active" data-mode="week">Por semana</button>
+      <button class="toggle-btn" data-mode="month">Por mes</button>
+    </div>
+    <table class="rate" id="actionsTable"></table>
+  </div>
+
+  <h2 class="section-title">¿Cómo se compone tu consumo?</h2>
+  <p class="section-desc">Tu consumo se mide en "créditos" — la unidad con la que Salesforce factura el uso de estas herramientas. Cada categoría corresponde a un tipo de medición exacto dentro del sistema de facturación de Salesforce (mostrado en texto pequeño), traducido aquí a lenguaje simple.</p>
+
+  <div class="card">
+    <table class="explain" id="explainTable"></table>
+  </div>
+
+  <div class="callout" id="conversationsNote"></div>
+
+  <h2 class="section-title">Evolución del consumo</h2>
+  <p class="section-desc">Este gráfico muestra cómo ha crecido cada tipo de consumo, desde que empezó a registrarse actividad en la plataforma. Cada categoría se muestra por separado y con su propia escala, ya que sus volúmenes de créditos son muy distintos entre sí. Puedes verlo por semana (para no perder detalle en el mes en curso, que está incompleto) o por mes (para una vista más general).</p>
+
+  <div class="toggle-group" id="chartToggle">
+    <button class="toggle-btn active" data-mode="week">Por semana</button>
+    <button class="toggle-btn" data-mode="month">Por mes</button>
+  </div>
+
+  <div class="grid4" id="chartGrid" style="grid-template-columns: repeat(2, 1fr);"></div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3 style="font-size:14px;margin:0 0 10px;">Lo más importante de este reporte</h3>
+    <ul style="margin:0; padding-left:18px; font-size:13px; color:var(--text-secondary); line-height:1.7;">
+      <li><b>El asistente virtual de lealtad</b> (el chat de tu página web) genera la gran mayoría del consumo actual — es tu principal fuente de gasto hoy.</li>
+      <li>Antes de febrero de 2026 usabas un <b>modelo anterior de inteligencia artificial</b>; ese modelo dejó de tener actividad justo cuando migraste al modelo actual.</li>
+      <li>El <b>análisis y personalización de datos de clientes</b> es una actividad aparte, mucho más pequeña, y empezó apenas el <b>13 de junio de 2026</b>.</li>
+      <li>Contrataste también un modelo de facturación por <b>"conversaciones completas"</b>, pero no se ha registrado ningún uso bajo ese modelo — todo tu consumo se está registrando bajo el modelo de "por acción".</li>
+    </ul>
+  </div>
+
+  <h2 class="section-title">¿Por qué se ven esos picos en las gráficas?</h2>
+  <p class="section-desc">Al observar la evolución semanal notarás algunos picos puntuales de consumo. Aquí explicamos las dos causas más probables para las licencias que sigues usando activamente hoy (el modelo anterior de IA ya no se incluye en este análisis, porque dejó de estar activo desde febrero de 2026).</p>
+
+  <div class="card spike-card">
+    <h4>Pico 1 — 16 al 28 de febrero de 2026 (arranque del nuevo modelo)</h4>
+    <p>Justo en las semanas posteriores al <b>14 de febrero de 2026</b> — la fecha en que tu contrato de Flex Credits entró en vigor y migraste al modelo actual — se ve un salto fuerte en el consumo del asistente virtual. Esto es un comportamiento esperado en cualquier arranque: hay más pruebas, más ajustes de configuración y más interacciones de puesta en marcha mientras el equipo valida que todo funcione correctamente, antes de estabilizarse en un ritmo de uso normal.</p>
+    <p class="spike-verify">Si quieres confirmar que este pico correspondió específicamente a actividades de arranque (pruebas, configuración) y no a uso real de clientes, esto debe confirmarse con el equipo técnico que gestionó la puesta en marcha del asistente en esas fechas.</p>
+  </div>
+
+  <div class="card spike-card spike-2" style="margin-top:14px;">
+    <h4>Pico 2 — 3 al 21 de agosto de 2026, con un eco menor a inicios de septiembre (posible campaña o evento comercial)</h4>
+    <p>Este es el pico más notorio del reporte. Lo interesante es que <b>ocurre al mismo tiempo en tres categorías distintas y activas</b>: el asistente virtual de lealtad, el análisis de datos de clientes y la generación de contenido con IA — las tres suben en las mismas fechas exactas. Esto es una señal fuerte de que no se trató de tres problemas técnicos separados, sino de <b>una sola causa de negocio</b> que generó más conversaciones reales con clientes: más personas conversando con el asistente (por ejemplo, para consultar su membresía o una promoción) naturalmente generó más procesamiento de sus datos y más contenido generado automáticamente para responderles.</p>
+    <p>Este patrón es típico de una <b>campaña de lealtad, promoción o comunicación masiva</b> que invita a los clientes a interactuar con el asistente en esas fechas.</p>
+    <p class="spike-verify">Para identificar con certeza qué campaña, promoción o evento coincidió con esas fechas, esto debe confirmarse con el equipo de marketing o CRM de Christus Muguerza que gestiona las comunicaciones del programa de lealtad.</p>
+  </div>
+
+  <div class="footnote">
+    <b>Cómo leer este reporte:</b> los "créditos" son la unidad de consumo con la que se factura el uso de estas herramientas de inteligencia artificial y datos — mientras más se usa el asistente virtual, el análisis de datos o la generación de contenido, más créditos se consumen. No es un cargo por usuario ni por licencia: es un cargo por actividad real.
+    <br><br>
+    <b>Tarifario oficial citado:</b> Flex Credits Rate Card, Salesforce (documento vigente al 31 de agosto de 2026) — Acción Estándar: 20 créditos (Producción) / 16 créditos (Sandbox); Acción Personalizada: 20 créditos (Producción) / 16 créditos (Sandbox); Acción de Voz: 30 créditos (Producción) / 24 créditos (Sandbox). Esta tarifa cubre únicamente las acciones del asistente virtual (Agentforce); el consumo de Data Cloud y de generación de contenido con IA se factura bajo tarifarios distintos, no publicados en este mismo documento — su tarifa exacta por unidad debe confirmarse directamente con la documentación oficial de esos productos.
+    <br><br>
+    <b>Fuente de los datos:</b> registros de uso reales de la plataforma (créditos consumidos, sin duplicados), correspondientes al periodo del 30 de octubre de 2025 al 14 de septiembre de 2026. Los datos de septiembre corresponden a un mes parcial (hasta el 14).
+  </div>
+
+</div>
+</div>
+
+<script>
+const fmtN = n => new Intl.NumberFormat('es-MX', {maximumFractionDigits:0}).format(Math.round(n));
+const fmtCompact = n => {
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+  if (abs >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'') + 'K';
+  return fmtN(n);
+};
+const fmtPct = n => fmtN(n) + '%';
+
+const MONTH_LABELS = ['oct 25','nov 25','dic 25','ene 26','feb 26','mar 26','abr 26','may 26','jun 26','jul 26','ago 26','sep 26*'];
+
+// Consumo mensual real por categoría (créditos), deduplicado, fuente: registros de uso de plataforma.
+const SERIES = [
+  { key:'asistente', name:'Asistente virtual de lealtad (chat)', color:'var(--series-1)',
+    data:[0,0,0,0,51748,18984,3248,2428,2648,4160,45584,29408] },
+  { key:'datos', name:'Análisis y personalización de datos', color:'var(--series-2)',
+    data:[0,0,441.6,1.5,620.1,343.6,129.6,99.2,137.8,218.7,845.5,1.4] },
+  { key:'contenido', name:'Generación de contenido con IA', color:'var(--series-3)',
+    data:[0,0,0,0,0,48,0,0,0,120,2342,0] },
+  { key:'legacy', name:'Modelo anterior de IA (histórico, ya no está activo)', color:'var(--series-4)',
+    data:[40,204364,264904,77682,0,0,0,0,0,0,0,0] },
+];
+
+// Consumo semanal real por categoría (créditos), semanas ISO (lunes de inicio), misma fuente que SERIES.
+// La última semana (14 sep*) es parcial — solo tiene un día de datos.
+const WEEK_LABELS = ['27 oct','3 nov','10 nov','17 nov','24 nov','1 dic','8 dic','15 dic','22 dic','29 dic',
+  '5 ene','12 ene','19 ene','26 ene','2 feb','9 feb','16 feb','23 feb','2 mar','9 mar','16 mar','23 mar','30 mar',
+  '6 abr','13 abr','20 abr','27 abr','4 may','11 may','18 may','25 may','1 jun','8 jun','15 jun','22 jun','29 jun',
+  '6 jul','13 jul','20 jul','27 jul','3 ago','10 ago','17 ago','24 ago','31 ago','7 sep','14 sep*'];
+
+const WEEKLY_SERIES = [
+  { key:'asistente', name:'Asistente virtual de lealtad (chat)', color:'var(--series-1)',
+    data:[0,0,0,0,0, 0,0,0,0,0, 0,0,0,0, 0,0,25312,26436,11432,2864,1296,2912,480,
+      416,400,1888,544, 720,368,704,636, 1296,712,304,0,784,
+      2400,656,240,416, 13184,6608,22064,3728,10416, 17936,1056] },
+  { key:'datos', name:'Análisis y personalización de datos', color:'var(--series-2)',
+    data:[0,0,0,0,0, 114.7,325.7,1.1,0.1,0, 0.2,0.3,0.3,0.7, 0.2,0,216.7,405.2,161.5,51.7,27.0,86.1,20.3,
+      54.2,33.3,34.4,6.2, 16.9,12.3,40.4,26.9, 27.7,55.2,16.8,8.5,62.5,
+      83.9,48.5,25.3,30.7, 214.0,190.6,425.0,11.8,0.8, 1.7,0.03] },
+  { key:'contenido', name:'Generación de contenido con IA', color:'var(--series-3)',
+    data:[0,0,0,0,0, 0,0,0,0,0, 0,0,0,0, 0,0,0,0,0,0,48,0,0,
+      0,0,0,0, 0,0,0,0, 0,0,0,0,0,
+      104,0,16,0, 1282,328,732,0,0, 0,0] },
+  { key:'legacy', name:'Modelo anterior de IA (histórico, ya no está activo)', color:'var(--series-4)',
+    data:[40,19658,64286,19472,100948, 60944,171032,29318,3610,0, 23790,15012,9602,29278, 93528,80386,0,0,0,0,0,0,0,
+      0,0,0,0, 0,0,0,0, 0,0,0,0,0,
+      0,0,0,0, 0,0,0,0,0, 0,0] },
+];
+
+const EXPLAIN_ROWS = [
+  { key:'asistente', name:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)', exact:'Agentforce_CustomAction · Agentforce_StandardAction',
+    desc:'Cada vez que un cliente conversa con el asistente de lealtad en tu página web (por ejemplo, para consultar o gestionar su membresía), el asistente ejecuta una "Acción Personalizada" (Custom Action) — y en un caso puntual una "Acción Estándar" (Standard Action) — de acuerdo con el tarifario oficial de Salesforce.',
+    total: 158208, share: 0 },
+  { key:'datos', name:'Análisis y personalización de datos', dot:'var(--series-2)', exact:'DataCloud_BatchDataPipeline · DataCloud_DataQueries · DataCloud_BatchCI · DataCloud_StreamingActions · DataCloud_StreamingDataPipeline',
+    desc:'Procesamiento de la información de tus clientes para mantenerla organizada, analizarla y usarla para personalizar su experiencia. Incluye una actividad más nueva y específica de personalización en tiempo real, que inició el 13 de junio de 2026.',
+    total: 2839, share: 0 },
+  { key:'contenido', name:'Generación de contenido con IA', dot:'var(--series-3)', exact:'EmbeddedAI_StandardPrompts · EmbeddedAI_BasicPrompts',
+    desc:'Uso de inteligencia artificial dentro de la plataforma para generar texto o contenido automáticamente (por ejemplo, redactar o resumir información), sin pasar por el chat del asistente.',
+    total: 2510, share: 0 },
+  { key:'legacy', name:'Modelo anterior de IA (histórico)', dot:'var(--series-4)', exact:'EinsteinAI_Standard · EinsteinAI_Basic',
+    desc:'Consumo registrado bajo la tecnología de inteligencia artificial que usabas antes de migrar al modelo actual, el 14 de febrero de 2026. Desde esa fecha no ha vuelto a tener actividad.',
+    total: 720904, share: 0 },
+];
+
+// Mismo consumo que arriba, pero desglosado en el detalle técnico exacto de cada actividad
+// (categoría → tipo de consumo puntual del rate card / Data Cloud / Embedded AI).
+// "acciones" solo se calcula cuando el rate card publica una conversión créditos→acción (Agentforce).
+const DETAIL_ROWS = [
+  { cat:'asistente', catName:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)',
+    name:'Acción Personalizada (Custom Action)', exact:'Agentforce_CustomAction', total:158192, rate:20 },
+  { cat:'asistente', catName:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)',
+    name:'Acción Estándar (Standard Action)', exact:'Agentforce_StandardAction', total:16, rate:16 },
+
+  { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
+    name:'Procesamiento de datos por lotes', exact:'DataCloud_BatchDataPipeline', total:2717.9, rate:null },
+  { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
+    name:'Insights calculados sobre los datos', exact:'DataCloud_BatchCI', total:86.8, rate:null },
+  { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
+    name:'Consultas de datos', exact:'DataCloud_DataQueries', total:27.1, rate:null },
+  { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
+    name:'Sincronización de datos en tiempo real', exact:'DataCloud_StreamingDataPipeline', total:3.6, rate:null },
+  { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
+    name:'Personalización en tiempo real', exact:'DataCloud_StreamingActions', total:3.6, rate:null },
+
+  { cat:'contenido', catName:'Generación de contenido con IA', dot:'var(--series-3)',
+    name:'Generación de contenido — estándar', exact:'EmbeddedAI_StandardPrompts', total:2504, rate:null },
+  { cat:'contenido', catName:'Generación de contenido con IA', dot:'var(--series-3)',
+    name:'Generación de contenido — básica', exact:'EmbeddedAI_BasicPrompts', total:6, rate:null },
+
+  { cat:'legacy', catName:'Modelo anterior de IA (histórico)', dot:'var(--series-4)',
+    name:'Solicitudes de IA — estándar', exact:'EinsteinAI_Standard', total:717420, rate:null },
+  { cat:'legacy', catName:'Modelo anterior de IA (histórico)', dot:'var(--series-4)',
+    name:'Solicitudes de IA — básicas', exact:'EinsteinAI_Basic', total:3484, rate:null },
+];
+
+// Tarifa oficial — Flex Credits Rate Card, Salesforce (vigente al 31 de agosto de 2026).
+// Aplica a las acciones del asistente virtual (Agentforce). Data Cloud y los prompts embebidos
+// se facturan bajo un tarifario distinto, no publicado en este mismo documento.
+const RATE_CARD = [
+  { tipo:'Acción Estándar (Standard Action)', prod:20, sandbox:16, covered:true },
+  { tipo:'Acción Personalizada (Custom Action)', prod:20, sandbox:16, covered:true },
+  { tipo:'Acción de Voz (Standard/Custom Voice Action)', prod:30, sandbox:24, covered:true },
+  { tipo:'Análisis y personalización de datos (Data Cloud)', prod:null, sandbox:null, covered:false, note:'Tarifa medida por volumen de datos procesados, no por acción — no está en el Rate Card de Flex Credits. Debe confirmarse con el tarifario oficial de Data Cloud/Data 360.' },
+  { tipo:'Generación de contenido con IA (Prompts embebidos)', prod:null, sandbox:null, covered:false, note:'Tarifa depende del modelo de lenguaje usado en cada prompt — no está en el Rate Card de Flex Credits. Debe confirmarse con el tarifario oficial de Prompt Builder/Einstein.' },
+];
+
+// Créditos de "Asistente virtual de lealtad" por mes, para convertir a acciones reales (÷20, tarifa de producción).
+const ASISTENTE_MONTHLY = [
+  { mes:'Feb 2026', creditos:51748 },
+  { mes:'Mar 2026', creditos:18984 },
+  { mes:'Abr 2026', creditos:3248 },
+  { mes:'May 2026', creditos:2428 },
+  { mes:'Jun 2026', creditos:2648 },
+  { mes:'Jul 2026', creditos:4160 },
+  { mes:'Ago 2026', creditos:45584 },
+  { mes:'Sep 2026*', creditos:29408 },
+];
+
+// Mismo consumo del asistente, por semana ISO, desde la primera semana con actividad (16 feb 2026).
+// La última semana (14 sep*) es parcial — solo tiene un día de datos.
+const ASISTENTE_WEEKLY = [
+  { mes:'16 feb', creditos:25312 }, { mes:'23 feb', creditos:26436 },
+  { mes:'2 mar', creditos:11432 }, { mes:'9 mar', creditos:2864 }, { mes:'16 mar', creditos:1296 }, { mes:'23 mar', creditos:2912 }, { mes:'30 mar', creditos:480 },
+  { mes:'6 abr', creditos:416 }, { mes:'13 abr', creditos:400 }, { mes:'20 abr', creditos:1888 }, { mes:'27 abr', creditos:544 },
+  { mes:'4 may', creditos:720 }, { mes:'11 may', creditos:368 }, { mes:'18 may', creditos:704 }, { mes:'25 may', creditos:636 },
+  { mes:'1 jun', creditos:1296 }, { mes:'8 jun', creditos:712 }, { mes:'15 jun', creditos:304 }, { mes:'22 jun', creditos:0 }, { mes:'29 jun', creditos:784 },
+  { mes:'6 jul', creditos:2400 }, { mes:'13 jul', creditos:656 }, { mes:'20 jul', creditos:240 }, { mes:'27 jul', creditos:416 },
+  { mes:'3 ago', creditos:13184 }, { mes:'10 ago', creditos:6608 }, { mes:'17 ago', creditos:22064 }, { mes:'24 ago', creditos:3728 }, { mes:'31 ago', creditos:10416 },
+  { mes:'7 sep', creditos:17936 }, { mes:'14 sep*', creditos:1056 },
+];
+
+function buildSummary(){
+  const totalCredits = EXPLAIN_ROWS.reduce((a,r)=>a+r.total,0);
+  EXPLAIN_ROWS.forEach(r => r.share = (r.total/totalCredits)*100);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid4';
+  const asistente = EXPLAIN_ROWS.find(r=>r.key==='asistente');
+  const datos = EXPLAIN_ROWS.find(r=>r.key==='datos');
+  const contenido = EXPLAIN_ROWS.find(r=>r.key==='contenido');
+  const conv = 0;
+  grid.innerHTML = `
+    <div class="card stat">
+      <div class="label"><span class="dot" style="background:${asistente.dot}"></span>Consumo del asistente de lealtad</div>
+      <div class="value">${fmtCompact(asistente.total)} <span class="pct">créditos</span></div>
+      <div class="sub">Desde que se activó, en febrero de 2026 — es tu mayor fuente de consumo hoy (${fmtPct(Math.round(asistente.share))} del total histórico).</div>
+    </div>
+    <div class="card stat">
+      <div class="label"><span class="dot" style="background:${datos.dot}"></span>Análisis y personalización de datos</div>
+      <div class="value">${fmtCompact(datos.total)} <span class="pct">créditos</span></div>
+      <div class="sub">Consumo estable y de bajo volumen. La parte de personalización inició el 13 de junio de 2026.</div>
+    </div>
+    <div class="card stat">
+      <div class="label"><span class="dot" style="background:${contenido.dot}"></span>Generación de contenido con IA</div>
+      <div class="value">${fmtCompact(contenido.total)} <span class="pct">créditos</span></div>
+      <div class="sub">Uso puntual, principalmente en agosto de 2026.</div>
+    </div>
+    <div class="card stat">
+      <div class="label">Consumo por conversaciones completas</div>
+      <div class="value">${fmtCompact(conv)} <span class="pct">créditos</span></div>
+      <div class="sub"><span class="badge warning">Sin uso registrado</span> Tienes este modelo contratado, pero no se ha usado — todo tu consumo se registra por acción individual, no por conversación.</div>
+    </div>
+  `;
+  document.getElementById('summaryGrid').appendChild(grid);
+}
+
+function buildExplainTable(){
+  const table = document.getElementById('explainTable');
+  const totalCredits = EXPLAIN_ROWS.reduce((a,r)=>a+r.total,0);
+  let html = `<colgroup><col style="width:22%;"><col style="width:34%;"><col style="width:15%;"><col style="width:15%;"><col style="width:14%;"></colgroup>`;
+  html += `<thead><tr><th>Categoría</th><th>Tipo exacto de consumo</th><th style="text-align:right;">Créditos</th><th style="text-align:right;">Acciones equivalentes</th><th style="text-align:right;">% del total</th></tr></thead><tbody>`;
+  EXPLAIN_ROWS.forEach(cat => {
+    const rows = DETAIL_ROWS.filter(d => d.cat === cat.key);
+    const rowSpan = rows.length + 1; // + fila de subtotal
+    rows.forEach((r, i) => {
+      const acciones = r.rate ? fmtN(r.total / r.rate) : '—';
+      html += '<tr>';
+      if (i === 0) {
+        html += `<td rowspan="${rowSpan}" style="background:var(--surface-2);vertical-align:top;">
+          <div class="catname"><span class="dot" style="width:9px;height:9px;border-radius:50%;background:${cat.dot};display:inline-block;"></span>${cat.name}</div>
+          <div style="font-weight:400;font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">${cat.desc}</div>
+        </td>`;
+      }
+      html += `
+        <td>${r.name}<span class="exacttype">${r.exact}</span></td>
+        <td class="num">${fmtN(r.total)}</td>
+        <td class="num">${acciones}</td>
+        <td class="num">${fmtPct(Math.round((r.total/totalCredits)*100))}</td>
+      </tr>`;
+    });
+    html += `<tr style="font-weight:600;background:var(--surface-2);">
+      <td>Subtotal</td>
+      <td class="num">${fmtN(cat.total)}</td>
+      <td class="num"></td>
+      <td class="num">${fmtPct(Math.round((cat.total/totalCredits)*100))}</td>
+    </tr>`;
+  });
+  html += `<tr style="font-weight:700;border-top:2px solid var(--border);">
+    <td colspan="2">Total histórico</td><td class="num">${fmtN(totalCredits)}</td><td class="num"></td><td class="num">100%</td>
+  </tr>`;
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildRateTable(){
+  const table = document.getElementById('rateTable');
+  let html = `<colgroup><col style="width:46%;"><col style="width:27%;"><col style="width:27%;"></colgroup>`;
+  html += `<thead><tr><th>Tipo de consumo</th><th style="text-align:right;">Créditos por acción (Producción)</th><th style="text-align:right;">Créditos por acción (Sandbox)</th></tr></thead><tbody>`;
+  RATE_CARD.forEach(r => {
+    if (r.covered) {
+      html += `<tr>
+        <td>${r.tipo}</td>
+        <td class="num">${r.prod}</td>
+        <td class="num">${r.sandbox}</td>
+      </tr>`;
+    } else {
+      html += `<tr class="notcovered">
+        <td>${r.tipo}</td>
+        <td class="notecell" colspan="2"><i>No incluida en este tarifario.</i> ${r.note}</td>
+      </tr>`;
+    }
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildActionsTable(mode){
+  const table = document.getElementById('actionsTable');
+  const rows = mode === 'week' ? ASISTENTE_WEEKLY : ASISTENTE_MONTHLY;
+  const colLabel = mode === 'week' ? 'Semana (inicia)' : 'Mes';
+  const totalLabel = mode === 'week' ? 'Total (16 feb – 14 sep 2026)' : 'Total (feb – sep 2026)';
+  let html = `<thead><tr><th>${colLabel}</th><th style="text-align:right;">Créditos consumidos</th><th style="text-align:right;">Acciones equivalentes (÷ 20)</th></tr></thead><tbody>`;
+  let totalCreditos = 0, totalAcciones = 0;
+  rows.forEach(m => {
+    const acciones = m.creditos / 20;
+    totalCreditos += m.creditos;
+    totalAcciones += acciones;
+    html += `<tr>
+      <td>${m.mes}</td>
+      <td class="num">${fmtN(m.creditos)}</td>
+      <td class="num">${fmtN(acciones)}</td>
+    </tr>`;
+  });
+  html += `<tr style="font-weight:600;"><td>${totalLabel}</td><td class="num">${fmtN(totalCreditos)}</td><td class="num">${fmtN(totalAcciones)}</td></tr>`;
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildConversationsNote(){
+  const el = document.getElementById('conversationsNote');
+  el.innerHTML = `<b>Sobre el modelo de "conversaciones completas":</b> tu contrato incluye este modelo de facturación desde junio de 2025 (y de nuevo desde febrero de 2026, tras la renovación), pero no se ha registrado ningún consumo bajo él en ningún momento. Actualmente, toda la actividad de tu asistente de lealtad se factura bajo el modelo "por acción" en su lugar. Esto está siendo revisado junto con tu equipo de implementación para confirmar si conviene ajustar el contrato a como realmente estás usando la plataforma hoy.`;
+}
+
+// ---------- gráfico de líneas multi-serie ----------
+function renderLineChart(el, series, labels, opts={}) {
+  const width = 900, height = 300;
+  const padL = 58, padR = 20, padT = 14, padB = 30;
+  const w = width - padL - padR, h = height - padT - padB;
+  const allVals = series.flatMap(s => s.data);
+  const maxV = Math.max(...allVals) * 1.2 || 1;
+  const xStep = w / (labels.length - 1);
+  const y = v => padT + h - (v/maxV)*h;
+  const x = i => padL + i*xStep;
+
+  let svg = `<svg class="linechart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${opts.aria||''}">`;
+  for (let g=0; g<=4; g++){
+    const val = maxV*g/4;
+    const yy = y(val);
+    svg += `<line x1="${padL}" y1="${yy}" x2="${width-padR}" y2="${yy}" class="grid-line"/>`;
+    svg += `<text x="${padL-8}" y="${yy+3}" text-anchor="end" class="axis-lbl">${fmtCompact(val)}</text>`;
+  }
+  const labelStep = opts.labelStep || 1;
+  labels.forEach((lb,i)=>{
+    if (i % labelStep !== 0 && i !== labels.length-1) return;
+    svg += `<text x="${x(i)}" y="${height-6}" text-anchor="middle" class="axis-lbl">${lb}</text>`;
+  });
+  series.forEach(s=>{
+    const pts = s.data.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+    svg += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.data.forEach((v,i)=>{
+      svg += `<circle cx="${x(i)}" cy="${y(v)}" r="8" class="hoverdot" data-idx="${i}" data-series="${s.name}"><title>${labels[i]} — ${s.name}: ${fmtN(v)} créditos</title></circle>`;
+    });
+  });
+  svg += '</svg>';
+
+  const legendHtml = '<div class="legend">' + series.map(s=>`<span class="lg-item"><span class="sw" style="background:${s.color}"></span>${s.name}</span>`).join('') + '</div>';
+  const metricsHtml = '<div class="chart-metrics" data-role="metrics"></div>';
+  el.innerHTML = metricsHtml + svg + legendHtml + '<div class="chart-tooltip" data-role="tooltip"></div>';
+
+  const metrics = el.querySelector('[data-role="metrics"]');
+  const pointsByIdx = labels.map((lb, idx) => {
+    const row = { label: lb, values: [] };
+    series.forEach(s => row.values.push({ name: s.name, value: s.data[idx], color: s.color }));
+    return row;
+  });
+  const renderMetrics = (idx) => {
+    const p = pointsByIdx[idx];
+    metrics.innerHTML = `<span class="chip"><b>${p.label}</b></span>` + p.values.map(v => `<span class="chip"><span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${v.color};margin-right:5px;"></span>${v.name}: <b>${fmtN(v.value)}</b></span>`).join('');
+  };
+  renderMetrics(pointsByIdx.length - 1);
+
+  const tooltip = el.querySelector('[data-role="tooltip"]');
+  const placeTooltip = (evt, text) => {
+    tooltip.textContent = text;
+    tooltip.style.display = 'block';
+    tooltip.style.left = `${evt.clientX + 12}px`;
+    tooltip.style.top = `${evt.clientY + 12}px`;
+  };
+  const hideTooltip = () => { tooltip.style.display = 'none'; };
+  [...el.querySelectorAll('.hoverdot[data-idx]')].forEach(c => {
+    c.addEventListener('mouseenter', (evt) => {
+      renderMetrics(Number(c.dataset.idx));
+      const title = c.querySelector('title');
+      if (title) placeTooltip(evt, title.textContent);
+    });
+    c.addEventListener('mousemove', (evt) => {
+      const title = c.querySelector('title');
+      if (title) placeTooltip(evt, title.textContent);
+    });
+    c.addEventListener('mouseleave', hideTooltip);
+  });
+}
+
+function buildChartGrid(mode){
+  const grid = document.getElementById('chartGrid');
+  grid.innerHTML = '';
+  const isWeek = mode === 'week';
+  const series = isWeek ? WEEKLY_SERIES : SERIES;
+  const labels = isWeek ? WEEK_LABELS : MONTH_LABELS;
+  const notes = {
+    asistente: isWeek ? 'Créditos por semana desde que se activó el asistente virtual (16 de febrero de 2026).' : 'Créditos por mes desde que se activó el asistente virtual (febrero de 2026).',
+    datos: isWeek ? 'Créditos por semana. Volumen bajo y estable; la personalización en tiempo real inició el 13 de junio de 2026.' : 'Créditos por mes. Volumen bajo y estable; la personalización en tiempo real inició el 13 de junio de 2026.',
+    contenido: isWeek ? 'Créditos por semana. Uso puntual, concentrado en agosto de 2026.' : 'Créditos por mes. Uso puntual, concentrado en agosto de 2026.',
+    legacy: isWeek ? 'Créditos por semana bajo el modelo anterior. Actividad detenida el 14 de febrero de 2026, al migrar al modelo actual.' : 'Créditos por mes bajo el modelo anterior. Actividad detenida desde el 14 de febrero de 2026, al migrar al modelo actual.',
+  };
+  series.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'card chartcard';
+    card.innerHTML = `<h3><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${s.color};margin-right:6px;"></span>${s.name}</h3>
+      <p class="note">${notes[s.key] || ''}</p>
+      <div class="chart-slot"></div>`;
+    grid.appendChild(card);
+    renderLineChart(card.querySelector('.chart-slot'), [s], labels, {aria:`Consumo — ${s.name}`, labelStep: isWeek ? 4 : 1});
+  });
+}
+
+function wireToggle(id, onChange){
+  const el = document.getElementById(id);
+  el.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onChange(btn.dataset.mode);
+    });
+  });
+}
+
+buildSummary();
+buildRateTable();
+buildActionsTable('week');
+buildExplainTable();
+buildConversationsNote();
+buildChartGrid('week');
+wireToggle('actionsToggle', buildActionsTable);
+wireToggle('chartToggle', buildChartGrid);
+</script>
+</body>
+</html>
