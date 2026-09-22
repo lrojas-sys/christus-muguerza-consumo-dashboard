@@ -52,7 +52,7 @@
   table.explain td.num { font-variant-numeric: tabular-nums; text-align:right; white-space:nowrap; }
   table.explain .catname { font-weight:600; display:flex; align-items:center; gap:8px; }
   table.explain .catname .dot { flex-shrink:0; }
-  table.explain .exacttype { display:block; font-size:11px; color:var(--text-muted); font-weight:400; margin-top:2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  table.explain .exacttype, table.rate .exacttype { display:block; font-size:11px; color:var(--text-muted); font-weight:400; margin-top:2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
   table.rate { width:100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
   table.rate th, table.rate td { text-align:left; padding: 9px 10px; border-bottom: 1px solid var(--grid); word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
@@ -106,10 +106,14 @@
 
   <header class="top">
     <h1>Christus Muguerza — ¿En qué se está usando tu consumo de Salesforce?</h1>
-    <p>Este reporte explica, en términos simples, qué está generando el consumo registrado en tu contrato desde que empezaste a usar la plataforma. Datos actualizados al 14 de septiembre de 2026.</p>
+    <p>Este reporte explica, en términos simples, qué está generando el consumo registrado en tu contrato desde que empezaste a usar la plataforma. Datos actualizados al 21 de septiembre de 2026, con el desglose por ambiente (Producción vs. Sandbox) recién incorporado.</p>
   </header>
 
   <div id="summaryGrid"></div>
+
+  <h2 class="section-title">Hallazgo principal: ¿dónde ocurre realmente el consumo?</h2>
+  <p class="section-desc">Cruzamos cada crédito con el ambiente de negocio en el que se generó (Producción vs. Sandbox). El resultado cambia la lectura de este reporte: la enorme mayoría del consumo histórico —incluyendo los dos picos más grandes de la gráfica— ocurrió en ambientes Sandbox, no frente a clientes reales en Producción.</p>
+  <div class="card" id="orgSplitCard"></div>
 
   <h2 class="section-title">Tarifario oficial de Salesforce (Rate Card)</h2>
   <p class="section-desc">Salesforce publica un tarifario oficial ("Flex Credits Rate Card") que fija cuántos créditos cuesta cada tipo de acción de tu asistente virtual. Con esta tarifa podemos traducir los créditos que consumes en un número real de acciones ejecutadas.</p>
@@ -121,7 +125,7 @@
 
   <div class="card" style="margin-top:14px;">
     <h3 style="font-size:14px;margin:0 0 10px;">¿Cuántas acciones representan los créditos de tu asistente?</h3>
-    <p class="note" style="margin:0 0 10px;">Usando la tarifa oficial de 20 créditos por acción (ambiente de producción), así se traduce tu consumo en número real de interacciones ejecutadas por el asistente. Se muestra por semana y por mes porque septiembre es un mes parcial (hasta el 14) y podría verse artificialmente bajo si solo se ve por mes.</p>
+    <p class="note" style="margin:0 0 10px;">Usando la tarifa oficial del Rate Card — 20 créditos por acción en Producción y 16 créditos por acción en Sandbox — así se traduce tu consumo en número real de interacciones ejecutadas por el asistente, según en qué ambiente ocurrió cada una. Se muestra por semana y por mes porque septiembre es un mes parcial (hasta el 14) y podría verse artificialmente bajo si solo se ve por mes.</p>
     <div class="toggle-group" id="actionsToggle">
       <button class="toggle-btn active" data-mode="week">Por semana</button>
       <button class="toggle-btn" data-mode="month">Por mes</button>
@@ -130,13 +134,32 @@
   </div>
 
   <h2 class="section-title">¿Cómo se compone tu consumo?</h2>
-  <p class="section-desc">Tu consumo se mide en "créditos" — la unidad con la que Salesforce factura el uso de estas herramientas. Cada categoría corresponde a un tipo de medición exacto dentro del sistema de facturación de Salesforce (mostrado en texto pequeño), traducido aquí a lenguaje simple.</p>
+  <p class="section-desc">Tu consumo se mide en "créditos" — la unidad con la que Salesforce factura el uso de estas herramientas. Cada categoría corresponde a un tipo de medición exacto dentro del sistema de facturación de Salesforce (mostrado en texto pequeño), traducido aquí a lenguaje simple. Las columnas <b>Producción</b> y <b>Sandbox</b> muestran cuántos créditos de esa fila se generaron en cada ambiente — no son bolsas distintas, sino el mismo tipo de crédito partido por dónde ocurrió. La bolsa contra la que se descuentan esos créditos varía por fila (se indica junto al tipo exacto): el asistente y la generación de contenido se descuentan de <b>Flex Credits</b>; el análisis de datos, de <b>Data Services Credits</b>; y el modelo anterior de IA, de la bolsa antigua de <b>Einstein Requests</b> — no todo es Flex Credits.</p>
 
   <div class="card">
     <table class="explain" id="explainTable"></table>
   </div>
 
+  <div class="card" style="margin-top:14px;">
+    <h3 style="font-size:14px;margin:0 0 6px;">Detalle de facturación por bolsa de entitlement</h3>
+    <p class="note" style="margin:0 0 10px;">Cada tipo de consumo se descuenta de una "bolsa" contratada específica (entitlement) dentro de tu contrato. Esta tabla muestra, para cada tipo de consumo, cuántos eventos se registraron, cuántos créditos representó, cuándo fue la última actividad, y de qué bolsa contratada se descontó.</p>
+    <table class="rate" id="entitlementTable"></table>
+  </div>
+
   <div class="callout" id="conversationsNote"></div>
+
+  <h2 class="section-title">Contratado vs. consumido: Flex Credits y Conversaciones</h2>
+  <p class="section-desc">Esto compara el <b>allowance</b> (lo que contrataste) contra lo que realmente se ha consumido en cada bolsa, incluyendo cuánto de ese consumo vino de Producción y cuánto de Sandbox. Flex Credits y Data Services Credits son bolsas compartidas entre ambientes: Producción y Sandbox descuentan del mismo allowance, no de bolsas separadas.</p>
+  <div class="card">
+    <table class="rate" id="allowanceTable"></table>
+  </div>
+
+  <h2 class="section-title">¿Cómo se consumió EinsteinAI_Standard?</h2>
+  <p class="section-desc">El modelo anterior de IA (717,420 créditos, casi todo el histórico previo a febrero 2026) no vino de conversaciones con clientes. Este es el desglose por función exacta de la plataforma que lo generó, según el descriptor de feature de cada evento.</p>
+  <div class="card">
+    <table class="rate" id="einsteinDetailTable"></table>
+  </div>
+  <div class="callout" id="einsteinDetailNote"></div>
 
   <h2 class="section-title">Evolución del consumo</h2>
   <p class="section-desc">Este gráfico muestra cómo ha crecido cada tipo de consumo, desde que empezó a registrarse actividad en la plataforma. Cada categoría se muestra por separado y con su propia escala, ya que sus volúmenes de créditos son muy distintos entre sí. Puedes verlo por semana (para no perder detalle en el mes en curso, que está incompleto) o por mes (para una vista más general).</p>
@@ -151,10 +174,12 @@
   <div class="card" style="margin-top:14px;">
     <h3 style="font-size:14px;margin:0 0 10px;">Lo más importante de este reporte</h3>
     <ul style="margin:0; padding-left:18px; font-size:13px; color:var(--text-secondary); line-height:1.7;">
-      <li><b>El asistente virtual de lealtad</b> (el chat de tu página web) genera la gran mayoría del consumo actual — es tu principal fuente de gasto hoy.</li>
-      <li>Antes de febrero de 2026 usabas un <b>modelo anterior de inteligencia artificial</b>; ese modelo dejó de tener actividad justo cuando migraste al modelo actual.</li>
-      <li>El <b>análisis y personalización de datos de clientes</b> es una actividad aparte, mucho más pequeña, y empezó apenas el <b>13 de junio de 2026</b>.</li>
-      <li>Contrataste también un modelo de facturación por <b>"conversaciones completas"</b>, pero no se ha registrado ningún uso bajo ese modelo — todo tu consumo se está registrando bajo el modelo de "por acción".</li>
+      <li><b>98% de todo el consumo histórico ocurrió en ambientes Sandbox, no en Producción.</b> Solo ~15,862 de 888,158 créditos históricos se generaron frente a clientes reales; el resto es actividad de pruebas, configuración e implementación.</li>
+      <li><b>El asistente virtual de lealtad</b> (el chat de tu página web) genera la gran mayoría del consumo <i>activo</i> — pero desde junio de 2026 esa actividad es 100% Sandbox; no hay evidencia de tráfico real de clientes en Producción en ese periodo.</li>
+      <li>Antes de febrero de 2026 usabas un <b>modelo anterior de inteligencia artificial</b> (717,420 créditos); ese consumo fue casi en su totalidad (99.9%) trabajo de configuración y pruebas del asistente en Sandbox — no facturación por clientes reales — y dejó de tener actividad justo cuando migraste al modelo actual.</li>
+      <li>El <b>análisis y personalización de datos de clientes</b> es una actividad aparte, mucho más pequeña, y empezó apenas el <b>13 de junio de 2026</b>; también es mayoritariamente Sandbox.</li>
+      <li>Contrataste también un modelo de facturación por <b>"conversaciones completas"</b> (allowance de 7,174), pero no se ha registrado ningún uso bajo ese modelo — todo tu consumo se está registrando bajo el modelo de "por acción".</li>
+      <li>De la bolsa de <b>Flex Credits</b> (200,000 contratados), ya se consumió 65.7% — pero el 88% de ese consumo vino de Sandbox, no de Producción.</li>
     </ul>
   </div>
 
@@ -162,16 +187,16 @@
   <p class="section-desc">Al observar la evolución semanal notarás algunos picos puntuales de consumo. Aquí explicamos las dos causas más probables para las licencias que sigues usando activamente hoy (el modelo anterior de IA ya no se incluye en este análisis, porque dejó de estar activo desde febrero de 2026).</p>
 
   <div class="card spike-card">
-    <h4>Pico 1 — 16 al 28 de febrero de 2026 (arranque del nuevo modelo)</h4>
-    <p>Justo en las semanas posteriores al <b>14 de febrero de 2026</b> — la fecha en que tu contrato de Flex Credits entró en vigor y migraste al modelo actual — se ve un salto fuerte en el consumo del asistente virtual. Esto es un comportamiento esperado en cualquier arranque: hay más pruebas, más ajustes de configuración y más interacciones de puesta en marcha mientras el equipo valida que todo funcione correctamente, antes de estabilizarse en un ritmo de uso normal.</p>
-    <p class="spike-verify">Si quieres confirmar que este pico correspondió específicamente a actividades de arranque (pruebas, configuración) y no a uso real de clientes, esto debe confirmarse con el equipo técnico que gestionó la puesta en marcha del asistente en esas fechas.</p>
+    <h4>Pico 1 — 16 al 28 de febrero de 2026 (arranque del nuevo modelo, confirmado en Sandbox)</h4>
+    <p>Justo en las semanas posteriores al <b>14 de febrero de 2026</b> — la fecha en que tu contrato de Flex Credits entró en vigor y migraste al modelo actual — se ve un salto fuerte en el consumo del asistente virtual. Con el desglose por ambiente ya confirmamos que este pico ocurrió <b>100% en Sandbox</b>: son pruebas, ajustes de configuración e interacciones de puesta en marcha mientras el equipo validaba que todo funcionara correctamente, antes de que empezara a haber tráfico real de Producción.</p>
+    <p class="spike-verify">Confirmado con datos de ambiente (usage_business_env_type): 0 créditos de Producción en esta ventana hasta el 22 de febrero; la primera actividad real de Producción aparece hasta la semana del 23 de febrero.</p>
   </div>
 
   <div class="card spike-card spike-2" style="margin-top:14px;">
-    <h4>Pico 2 — 3 al 21 de agosto de 2026, con un eco menor a inicios de septiembre (posible campaña o evento comercial)</h4>
-    <p>Este es el pico más notorio del reporte. Lo interesante es que <b>ocurre al mismo tiempo en tres categorías distintas y activas</b>: el asistente virtual de lealtad, el análisis de datos de clientes y la generación de contenido con IA — las tres suben en las mismas fechas exactas. Esto es una señal fuerte de que no se trató de tres problemas técnicos separados, sino de <b>una sola causa de negocio</b> que generó más conversaciones reales con clientes: más personas conversando con el asistente (por ejemplo, para consultar su membresía o una promoción) naturalmente generó más procesamiento de sus datos y más contenido generado automáticamente para responderles.</p>
-    <p>Este patrón es típico de una <b>campaña de lealtad, promoción o comunicación masiva</b> que invita a los clientes a interactuar con el asistente en esas fechas.</p>
-    <p class="spike-verify">Para identificar con certeza qué campaña, promoción o evento coincidió con esas fechas, esto debe confirmarse con el equipo de marketing o CRM de Christus Muguerza que gestiona las comunicaciones del programa de lealtad.</p>
+    <h4>Pico 2 — 3 al 21 de agosto de 2026, con un eco menor a inicios de septiembre (actividad de Sandbox, no una campaña con clientes)</h4>
+    <p>Este es el pico más notorio del reporte. Ocurre al mismo tiempo en tres categorías distintas y activas: el asistente virtual de lealtad, el análisis de datos de clientes y la generación de contenido con IA — las tres suben en las mismas fechas exactas. Antes pensábamos que esto podía ser una campaña real con clientes, pero al cruzarlo con el ambiente de negocio encontramos que <b>este pico es 100% Sandbox</b>: no hubo ni un solo crédito de Producción en las tres categorías durante estas fechas.</p>
+    <p>Esto cambia la conclusión: no fue una campaña de lealtad ni una promoción que generó tráfico real de clientes. Es <b>actividad de pruebas o configuración</b> —probablemente relacionada con ajustes al asistente, a la personalización de datos o a la generación de contenido— ejecutada en un ambiente Sandbox, sin que haya llegado a tocar Producción.</p>
+    <p class="spike-verify">Confirmado con datos de ambiente: Producción registra 0 créditos de Agentforce_CustomAction desde junio de 2026 en adelante. Para saber qué equipo o iniciativa generó esta actividad de prueba, esto debe confirmarse con el equipo técnico o de implementación que tuvo acceso al Sandbox en esas fechas — no con marketing o CRM.</p>
   </div>
 
   <div class="footnote">
@@ -238,47 +263,97 @@ const WEEKLY_SERIES = [
 const EXPLAIN_ROWS = [
   { key:'asistente', name:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)', exact:'Agentforce_CustomAction · Agentforce_StandardAction',
     desc:'Cada vez que un cliente conversa con el asistente de lealtad en tu página web (por ejemplo, para consultar o gestionar su membresía), el asistente ejecuta una "Acción Personalizada" (Custom Action) — y en un caso puntual una "Acción Estándar" (Standard Action) — de acuerdo con el tarifario oficial de Salesforce.',
-    total: 158208, share: 0 },
+    total: 161912, prod: 15640, sandbox: 146272, share: 0 },
   { key:'datos', name:'Análisis y personalización de datos', dot:'var(--series-2)', exact:'DataCloud_BatchDataPipeline · DataCloud_DataQueries · DataCloud_BatchCI · DataCloud_StreamingActions · DataCloud_StreamingDataPipeline',
     desc:'Procesamiento de la información de tus clientes para mantenerla organizada, analizarla y usarla para personalizar su experiencia. Incluye una actividad más nueva y específica de personalización en tiempo real, que inició el 13 de junio de 2026.',
-    total: 2839, share: 0 },
+    total: 2831.8, prod: 177.8, sandbox: 2654.0, share: 0 },
   { key:'contenido', name:'Generación de contenido con IA', dot:'var(--series-3)', exact:'EmbeddedAI_StandardPrompts · EmbeddedAI_BasicPrompts',
     desc:'Uso de inteligencia artificial dentro de la plataforma para generar texto o contenido automáticamente (por ejemplo, redactar o resumir información), sin pasar por el chat del asistente.',
-    total: 2510, share: 0 },
+    total: 2510, prod: 44, sandbox: 2466, share: 0 },
   { key:'legacy', name:'Modelo anterior de IA (histórico)', dot:'var(--series-4)', exact:'EinsteinAI_Standard · EinsteinAI_Basic',
     desc:'Consumo registrado bajo la tecnología de inteligencia artificial que usabas antes de migrar al modelo actual, el 14 de febrero de 2026. Desde esa fecha no ha vuelto a tener actividad.',
-    total: 720904, share: 0 },
+    total: 720904, prod: 0, sandbox: 720904, share: 0 },
 ];
+
+// Créditos por ambiente de negocio (usage_business_env_type), fuente: sfdw_enriched_usage_event
+// deduplicado (internal_emit_id), cruzado contra los totales oficiales de facturación. Recalculado 21 sep 2026.
+const ORG_SPLIT_TOTALS = { prod: 15861.8, sandbox: 872296.0, total: 888157.8 };
 
 // Mismo consumo que arriba, pero desglosado en el detalle técnico exacto de cada actividad
 // (categoría → tipo de consumo puntual del rate card / Data Cloud / Embedded AI).
 // "acciones" solo se calcula cuando el rate card publica una conversión créditos→acción (Agentforce).
+// prodRate/sandboxRate: créditos por acción del Rate Card, aplicados por separado a la porción
+// de créditos que realmente ocurrió en Producción vs. Sandbox (usage_business_env_type).
 const DETAIL_ROWS = [
   { cat:'asistente', catName:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)',
-    name:'Acción Personalizada (Custom Action)', exact:'Agentforce_CustomAction', total:158192, rate:20 },
+    name:'Acción Personalizada (Custom Action)', exact:'Agentforce_CustomAction', total:161896, prod:15640, sandbox:146256, prodRate:20, sandboxRate:16 },
   { cat:'asistente', catName:'Asistente virtual de lealtad (chat)', dot:'var(--series-1)',
-    name:'Acción Estándar (Standard Action)', exact:'Agentforce_StandardAction', total:16, rate:16 },
+    name:'Acción Estándar (Standard Action)', exact:'Agentforce_StandardAction', total:16, prod:0, sandbox:16, prodRate:20, sandboxRate:16 },
 
   { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
-    name:'Procesamiento de datos por lotes', exact:'DataCloud_BatchDataPipeline', total:2717.9, rate:null },
+    name:'Procesamiento de datos por lotes', exact:'DataCloud_BatchDataPipeline', total:2710.3, prod:177.3, sandbox:2533.0, prodRate:null, sandboxRate:null },
   { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
-    name:'Insights calculados sobre los datos', exact:'DataCloud_BatchCI', total:86.8, rate:null },
+    name:'Insights calculados sobre los datos', exact:'DataCloud_BatchCI', total:86.8, prod:0, sandbox:86.8, prodRate:null, sandboxRate:null },
   { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
-    name:'Consultas de datos', exact:'DataCloud_DataQueries', total:27.1, rate:null },
+    name:'Consultas de datos', exact:'DataCloud_DataQueries', total:27.1, prod:0.5, sandbox:26.6, prodRate:null, sandboxRate:null },
   { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
-    name:'Sincronización de datos en tiempo real', exact:'DataCloud_StreamingDataPipeline', total:3.6, rate:null },
+    name:'Sincronización de datos en tiempo real', exact:'DataCloud_StreamingDataPipeline', total:3.8, prod:0, sandbox:3.8, prodRate:null, sandboxRate:null },
   { cat:'datos', catName:'Análisis y personalización de datos', dot:'var(--series-2)',
-    name:'Personalización en tiempo real', exact:'DataCloud_StreamingActions', total:3.6, rate:null },
+    name:'Personalización en tiempo real', exact:'DataCloud_StreamingActions', total:3.8, prod:0, sandbox:3.8, prodRate:null, sandboxRate:null },
 
   { cat:'contenido', catName:'Generación de contenido con IA', dot:'var(--series-3)',
-    name:'Generación de contenido — estándar', exact:'EmbeddedAI_StandardPrompts', total:2504, rate:null },
+    name:'Generación de contenido — estándar', exact:'EmbeddedAI_StandardPrompts', total:2504, prod:44, sandbox:2460, prodRate:null, sandboxRate:null },
   { cat:'contenido', catName:'Generación de contenido con IA', dot:'var(--series-3)',
-    name:'Generación de contenido — básica', exact:'EmbeddedAI_BasicPrompts', total:6, rate:null },
+    name:'Generación de contenido — básica', exact:'EmbeddedAI_BasicPrompts', total:6, prod:0, sandbox:6, prodRate:null, sandboxRate:null },
 
   { cat:'legacy', catName:'Modelo anterior de IA (histórico)', dot:'var(--series-4)',
-    name:'Solicitudes de IA — estándar', exact:'EinsteinAI_Standard', total:717420, rate:null },
+    name:'Solicitudes de IA — estándar', exact:'EinsteinAI_Standard', total:717420, prod:0, sandbox:717420, prodRate:null, sandboxRate:null },
   { cat:'legacy', catName:'Modelo anterior de IA (histórico)', dot:'var(--series-4)',
-    name:'Solicitudes de IA — básicas', exact:'EinsteinAI_Basic', total:3484, rate:null },
+    name:'Solicitudes de IA — básicas', exact:'EinsteinAI_Basic', total:3484, prod:0, sandbox:3484, prodRate:null, sandboxRate:null },
+];
+
+// Detalle de facturación por bolsa de entitlement, fuente: registros de uso deduplicados
+// (unique_usage_id, accumulation_method='SUM') cruzados con la tabla de entitlements del contrato
+// vía entitlement_schedule_id. Nombres en lenguaje de negocio, estilo Rate Card.
+// credits/prod/sandbox recalculados 21 sep 2026 desde sfdw_entitlement_usage_billing (créditos totales
+// facturados, deduplicados) y sfdw_enriched_usage_event (split por usage_business_env_type).
+const ENTITLEMENT_ROWS = [
+  { name:'Solicitud de IA — estándar (modelo anterior)', exact:'EinsteinAI_Standard', events:119, credits:717420, prod:0, sandbox:717420, last:'14 feb 2026', pool:'Einstein Requests', poolNote:'contrato anterior, expiró 31 ene 2026', entId:'a5Fed0000008amREAQ' },
+  { name:'Acción Personalizada (Custom Action)', exact:'Agentforce_CustomAction', events:145, credits:161952, prod:15640, sandbox:146312, last:'17 sep 2026', pool:'Flex Credits', poolNote:'vigente, 2026-02-14 → 2027-02-13', entId:'a5Fed000000J9XZEA0' },
+  { name:'Solicitud de IA — básica (modelo anterior)', exact:'EinsteinAI_Basic', events:70, credits:3484, prod:0, sandbox:3484, last:'14 feb 2026', pool:'Einstein Requests', poolNote:'vigente, 2026-02-01 → 2027-01-31', entId:'a5Fed000000I9pfEAC' },
+  { name:'Procesamiento de datos por lotes', exact:'DataCloud_BatchDataPipeline', events:336, credits:2717.9, prod:177.3, sandbox:2540.6, last:'25 ago 2026', pool:'Data Services Credits', poolNote:'vigente, 2025-12-19 → 2026-12-18', entId:'a5Fed000000FZ2SEAW' },
+  { name:'Generación de contenido — estándar', exact:'EmbeddedAI_StandardPrompts', events:27, credits:2504, prod:44, sandbox:2460, last:'21 ago 2026', pool:'Flex Credits', poolNote:'vigente, 2026-02-14 → 2027-02-13', entId:'a5Fed000000J9XZEA0' },
+  { name:'Insight calculado sobre los datos', exact:'DataCloud_BatchCI', events:25, credits:86.8, prod:0, sandbox:86.8, last:'23 feb 2026', pool:'Data Services Credits', poolNote:'vigente, 2025-12-19 → 2026-12-18', entId:'a5Fed000000FZ2SEAW' },
+  { name:'Consulta de datos', exact:'DataCloud_DataQueries', events:365, credits:27.1, prod:0.5, sandbox:26.6, last:'18 sep 2026', pool:'Data Services Credits', poolNote:'vigente, 2025-12-19 → 2026-12-18', entId:'a5Fed000000FZ2SEAW' },
+  { name:'Acción Estándar (Standard Action)', exact:'Agentforce_StandardAction', events:1, credits:16, prod:0, sandbox:16, last:'29 jul 2026', pool:'Flex Credits', poolNote:'vigente, 2026-02-14 → 2027-02-13', entId:'a5Fed000000J9XZEA0' },
+  { name:'Generación de contenido — básica', exact:'EmbeddedAI_BasicPrompts', events:3, credits:6, prod:0, sandbox:6, last:'20 ago 2026', pool:'Flex Credits', poolNote:'vigente, 2026-02-14 → 2027-02-13', entId:'a5Fed000000J9XZEA0' },
+  { name:'Personalización en tiempo real', exact:'DataCloud_StreamingActions', events:93, credits:3.8, prod:0, sandbox:3.8, last:'18 sep 2026', pool:'Data Services Credits', poolNote:'vigente, 2025-12-19 → 2026-12-18', entId:'a5Fed000000FZ2SEAW' },
+  { name:'Sincronización de datos en tiempo real', exact:'DataCloud_StreamingDataPipeline', events:72, credits:3.8, prod:0, sandbox:3.8, last:'17 sep 2026', pool:'Data Services Credits', poolNote:'vigente, 2025-12-19 → 2026-12-18', entId:'a5Fed000000FZ2SEAW' },
+];
+
+// ---- NUEVO: bolsas de "allowance" contratado, fuente: fms_acct_entitlement_tnt_metrics (snapshot 2026-09-30).
+// Flex Credits y Data Services Credits son bolsas COMPARTIDAS entre Producción y Sandbox — el consumo de
+// ambos ambientes se descuenta de un único allowance, no de bolsas separadas.
+const ALLOWANCE_ROWS = [
+  { name:'Conversaciones completas (Conversations)', vigencia:'2026-02-01 → 2027-01-31', allowance:7174, prod:0, sandbox:0,
+    note:'Modelo de facturación contratado pero nunca utilizado — todo el consumo del asistente se sigue registrando bajo "por acción".' },
+  { name:'Flex Credits (Agentforce, Prompt Builder)', vigencia:'2026-02-14 → 2027-02-13', allowance:200000, prod:15724, sandbox:115586,
+    note:'Bolsa compartida: 65.7% ya consumido, y el 88% de ese consumo ocurrió en Sandbox, no en Producción.' },
+  { name:'Einstein Requests (modelo anterior, vigente)', vigencia:'2026-02-01 → 2027-01-31', allowance:1734800, prod:0, sandbox:173914,
+    note:'Entitlement renovado el 1 feb 2026; el 100% de lo consumido contra esta bolsa ocurrió en Sandbox.' },
+];
+
+// ---- NUEVO: desglose de EinsteinAI_Standard/Basic por feature_developer_name — de dónde vino ese consumo
+// histórico. Fuente: sfdw_enriched_usage_event, deduplicado, tenant de producción. usage_user_id no viene
+// poblado en estos eventos (billing a nivel de feature, no de usuario individual).
+const EINSTEIN_STANDARD_DETAIL = [
+  { feature:'CopilotForDigitalChannels', label:'Motor del asistente de lealtad (chat embebido) — configuración/pruebas antes del go-live', credits:716602, events:41592, first:'30 oct 2025', last:'14 feb 2026' },
+  { feature:'PromptBuilderPreview', label:'Vista previa de prompts en Prompt Builder', credits:1588, events:128, first:'19 nov 2025', last:'16 ene 2026' },
+  { feature:'(sin feature registrada)', label:'Solicitud genérica de Einstein Requests, sin descriptor de feature', credits:1474, events:108, first:'3 dic 2025', last:'3 dic 2025' },
+  { feature:'PromptTemplateGenerationsInvocable', label:'Generación de plantillas de prompt', credits:1140, events:272, first:'24 nov 2025', last:'14 feb 2026' },
+  { feature:'GenerateFlowFormula', label:'Generación de fórmulas con IA dentro de Flow', credits:40, events:1, first:'23 ene 2026', last:'23 ene 2026' },
+  { feature:'FixFormula', label:'Corrección de fórmulas con IA dentro de Flow', credits:30, events:3, first:'26 nov 2025', last:'27 ene 2026' },
+  { feature:'ExplainFormula', label:'Explicación de fórmulas con IA dentro de Flow', credits:30, events:3, first:'12 dic 2025', last:'27 ene 2026' },
 ];
 
 // Tarifa oficial — Flex Credits Rate Card, Salesforce (vigente al 31 de agosto de 2026).
@@ -293,28 +368,30 @@ const RATE_CARD = [
 ];
 
 // Créditos de "Asistente virtual de lealtad" por mes, para convertir a acciones reales (÷20, tarifa de producción).
+// prod: créditos de esa fila que ocurrieron en Producción (usage_business_env_type). El resto es Sandbox.
 const ASISTENTE_MONTHLY = [
-  { mes:'Feb 2026', creditos:51748 },
-  { mes:'Mar 2026', creditos:18984 },
-  { mes:'Abr 2026', creditos:3248 },
-  { mes:'May 2026', creditos:2428 },
-  { mes:'Jun 2026', creditos:2648 },
-  { mes:'Jul 2026', creditos:4160 },
-  { mes:'Ago 2026', creditos:45584 },
-  { mes:'Sep 2026*', creditos:29408 },
+  { mes:'Feb 2026', creditos:51748, prod:2020 },
+  { mes:'Mar 2026', creditos:18984, prod:13480 },
+  { mes:'Abr 2026', creditos:3248, prod:0 },
+  { mes:'May 2026', creditos:2428, prod:140 },
+  { mes:'Jun 2026', creditos:2648, prod:0 },
+  { mes:'Jul 2026', creditos:4160, prod:0 },
+  { mes:'Ago 2026', creditos:45584, prod:0 },
+  { mes:'Sep 2026*', creditos:29408, prod:0 },
 ];
 
 // Mismo consumo del asistente, por semana ISO, desde la primera semana con actividad (16 feb 2026).
 // La última semana (14 sep*) es parcial — solo tiene un día de datos.
+// prod: créditos de esa semana que ocurrieron en Producción (usage_business_env_type); default 0 = 100% Sandbox.
 const ASISTENTE_WEEKLY = [
-  { mes:'16 feb', creditos:25312 }, { mes:'23 feb', creditos:26436 },
-  { mes:'2 mar', creditos:11432 }, { mes:'9 mar', creditos:2864 }, { mes:'16 mar', creditos:1296 }, { mes:'23 mar', creditos:2912 }, { mes:'30 mar', creditos:480 },
-  { mes:'6 abr', creditos:416 }, { mes:'13 abr', creditos:400 }, { mes:'20 abr', creditos:1888 }, { mes:'27 abr', creditos:544 },
-  { mes:'4 may', creditos:720 }, { mes:'11 may', creditos:368 }, { mes:'18 may', creditos:704 }, { mes:'25 may', creditos:636 },
-  { mes:'1 jun', creditos:1296 }, { mes:'8 jun', creditos:712 }, { mes:'15 jun', creditos:304 }, { mes:'22 jun', creditos:0 }, { mes:'29 jun', creditos:784 },
-  { mes:'6 jul', creditos:2400 }, { mes:'13 jul', creditos:656 }, { mes:'20 jul', creditos:240 }, { mes:'27 jul', creditos:416 },
-  { mes:'3 ago', creditos:13184 }, { mes:'10 ago', creditos:6608 }, { mes:'17 ago', creditos:22064 }, { mes:'24 ago', creditos:3728 }, { mes:'31 ago', creditos:10416 },
-  { mes:'7 sep', creditos:17936 }, { mes:'14 sep*', creditos:1056 },
+  { mes:'16 feb', creditos:25312, prod:0 }, { mes:'23 feb', creditos:26436, prod:2020 },
+  { mes:'2 mar', creditos:11432, prod:8680 }, { mes:'9 mar', creditos:2864, prod:1840 }, { mes:'16 mar', creditos:1296, prod:720 }, { mes:'23 mar', creditos:2912, prod:2240 }, { mes:'30 mar', creditos:480, prod:0 },
+  { mes:'6 abr', creditos:416, prod:0 }, { mes:'13 abr', creditos:400, prod:0 }, { mes:'20 abr', creditos:1888, prod:0 }, { mes:'27 abr', creditos:544, prod:0 },
+  { mes:'4 may', creditos:720, prod:0 }, { mes:'11 may', creditos:368, prod:0 }, { mes:'18 may', creditos:704, prod:0 }, { mes:'25 may', creditos:636, prod:140 },
+  { mes:'1 jun', creditos:1296, prod:0 }, { mes:'8 jun', creditos:712, prod:0 }, { mes:'15 jun', creditos:304, prod:0 }, { mes:'22 jun', creditos:0, prod:0 }, { mes:'29 jun', creditos:784, prod:0 },
+  { mes:'6 jul', creditos:2400, prod:0 }, { mes:'13 jul', creditos:656, prod:0 }, { mes:'20 jul', creditos:240, prod:0 }, { mes:'27 jul', creditos:416, prod:0 },
+  { mes:'3 ago', creditos:13184, prod:0 }, { mes:'10 ago', creditos:6608, prod:0 }, { mes:'17 ago', creditos:22064, prod:0 }, { mes:'24 ago', creditos:3728, prod:0 }, { mes:'31 ago', creditos:10416, prod:0 },
+  { mes:'7 sep', creditos:17936, prod:0 }, { mes:'14 sep*', creditos:1056, prod:0 },
 ];
 
 function buildSummary(){
@@ -352,16 +429,27 @@ function buildSummary(){
   document.getElementById('summaryGrid').appendChild(grid);
 }
 
+function accionesEquivalentes(r){
+  if (r.prodRate == null && r.sandboxRate == null) return null;
+  const prodAcc = r.prodRate ? r.prod / r.prodRate : 0;
+  const sandboxAcc = r.sandboxRate ? r.sandbox / r.sandboxRate : 0;
+  return prodAcc + sandboxAcc;
+}
+
 function buildExplainTable(){
   const table = document.getElementById('explainTable');
   const totalCredits = EXPLAIN_ROWS.reduce((a,r)=>a+r.total,0);
-  let html = `<colgroup><col style="width:22%;"><col style="width:34%;"><col style="width:15%;"><col style="width:15%;"><col style="width:14%;"></colgroup>`;
-  html += `<thead><tr><th>Categoría</th><th>Tipo exacto de consumo</th><th style="text-align:right;">Créditos</th><th style="text-align:right;">Acciones equivalentes</th><th style="text-align:right;">% del total</th></tr></thead><tbody>`;
+  const poolByExact = {};
+  ENTITLEMENT_ROWS.forEach(r => { poolByExact[r.exact] = r.pool; });
+  let html = `<colgroup><col style="width:18%;"><col style="width:24%;"><col style="width:11%;"><col style="width:11%;"><col style="width:12%;"><col style="width:12%;"><col style="width:12%;"></colgroup>`;
+  html += `<thead><tr><th>Categoría</th><th>Tipo exacto de consumo</th><th style="text-align:right;">Producción</th><th style="text-align:right;">Sandbox</th><th style="text-align:right;">Créditos</th><th style="text-align:right;">Acciones equivalentes</th><th style="text-align:right;">% del total</th></tr></thead><tbody>`;
   EXPLAIN_ROWS.forEach(cat => {
     const rows = DETAIL_ROWS.filter(d => d.cat === cat.key);
     const rowSpan = rows.length + 1; // + fila de subtotal
     rows.forEach((r, i) => {
-      const acciones = r.rate ? fmtN(r.total / r.rate) : '—';
+      const acc = accionesEquivalentes(r);
+      const acciones = acc == null ? '—' : fmtN(acc);
+      const pool = poolByExact[r.exact] || '';
       html += '<tr>';
       if (i === 0) {
         html += `<td rowspan="${rowSpan}" style="background:var(--surface-2);vertical-align:top;">
@@ -370,7 +458,9 @@ function buildExplainTable(){
         </td>`;
       }
       html += `
-        <td>${r.name}<span class="exacttype">${r.exact}</span></td>
+        <td>${r.name}<span class="exacttype">${r.exact}${pool ? ' · Bolsa: ' + pool : ''}</span></td>
+        <td class="num">${fmtN(r.prod)}</td>
+        <td class="num">${fmtN(r.sandbox)}</td>
         <td class="num">${fmtN(r.total)}</td>
         <td class="num">${acciones}</td>
         <td class="num">${fmtPct(Math.round((r.total/totalCredits)*100))}</td>
@@ -378,16 +468,41 @@ function buildExplainTable(){
     });
     html += `<tr style="font-weight:600;background:var(--surface-2);">
       <td>Subtotal</td>
+      <td class="num">${fmtN(cat.prod)}</td>
+      <td class="num">${fmtN(cat.sandbox)}</td>
       <td class="num">${fmtN(cat.total)}</td>
       <td class="num"></td>
       <td class="num">${fmtPct(Math.round((cat.total/totalCredits)*100))}</td>
     </tr>`;
   });
   html += `<tr style="font-weight:700;border-top:2px solid var(--border);">
-    <td colspan="2">Total histórico</td><td class="num">${fmtN(totalCredits)}</td><td class="num"></td><td class="num">100%</td>
+    <td colspan="2">Total histórico</td><td class="num">${fmtN(ORG_SPLIT_TOTALS.prod)}</td><td class="num">${fmtN(ORG_SPLIT_TOTALS.sandbox)}</td><td class="num">${fmtN(totalCredits)}</td><td class="num"></td><td class="num">100%</td>
   </tr>`;
   html += '</tbody>';
   table.innerHTML = html;
+}
+
+function buildOrgSplitCard(){
+  const el = document.getElementById('orgSplitCard');
+  const prodPct = Math.round((ORG_SPLIT_TOTALS.prod / ORG_SPLIT_TOTALS.total) * 100);
+  const sandboxPct = 100 - prodPct;
+  el.innerHTML = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:center;">
+      <div>
+        <div class="label" style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Producción (frente a clientes reales)</div>
+        <div class="value" style="font-size:28px;font-weight:700;color:var(--text-primary);">${fmtPct(prodPct)} <span class="pct" style="font-size:13px;font-weight:500;color:var(--text-muted);">· ${fmtN(ORG_SPLIT_TOTALS.prod)} créditos</span></div>
+      </div>
+      <div>
+        <div class="label" style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Sandbox (pruebas, configuración, implementación)</div>
+        <div class="value" style="font-size:28px;font-weight:700;color:var(--warning);">${fmtPct(sandboxPct)} <span class="pct" style="font-size:13px;font-weight:500;color:var(--text-muted);">· ${fmtN(ORG_SPLIT_TOTALS.sandbox)} créditos</span></div>
+      </div>
+    </div>
+    <div style="height:10px; border-radius:6px; overflow:hidden; display:flex; margin-top:14px;">
+      <div style="width:${prodPct}%; background:var(--series-1);"></div>
+      <div style="width:${sandboxPct}%; background:var(--warning);"></div>
+    </div>
+    <p style="font-size:12.5px; color:var(--text-muted); margin:12px 0 0; line-height:1.55;">De los ${fmtN(ORG_SPLIT_TOTALS.total)} créditos consumidos desde octubre de 2025, solo ${fmtN(ORG_SPLIT_TOTALS.prod)} se generaron en el ambiente de Producción. El resto —incluyendo casi todo el histórico de "Modelo anterior de IA" y la mayor parte del "Asistente virtual de lealtad" desde junio de 2026— ocurrió en ambientes Sandbox, típicamente usados para pruebas, configuración e implementación, no para atender clientes reales.</p>
+  `;
 }
 
 function buildRateTable(){
@@ -412,24 +527,99 @@ function buildRateTable(){
   table.innerHTML = html;
 }
 
+function buildEntitlementTable(){
+  const table = document.getElementById('entitlementTable');
+  let html = `<colgroup><col style="width:24%;"><col style="width:9%;"><col style="width:11%;"><col style="width:11%;"><col style="width:12%;"><col style="width:13%;"><col style="width:20%;"></colgroup>`;
+  html += `<thead><tr><th>Tipo de consumo</th><th style="text-align:right;">Eventos</th><th style="text-align:right;">Producción</th><th style="text-align:right;">Sandbox</th><th style="text-align:right;">Créditos</th><th>Última actividad</th><th>Bolsa de entitlement</th></tr></thead><tbody>`;
+  ENTITLEMENT_ROWS.forEach(r => {
+    html += `<tr>
+      <td>${r.name}<span class="exacttype">${r.exact}</span></td>
+      <td class="num">${fmtN(r.events)}</td>
+      <td class="num">${fmtN(r.prod)}</td>
+      <td class="num">${fmtN(r.sandbox)}</td>
+      <td class="num">${fmtN(r.credits)}</td>
+      <td>${r.last}</td>
+      <td>${r.pool}<span class="exacttype">${r.poolNote}</span></td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildAllowanceTable(){
+  const table = document.getElementById('allowanceTable');
+  let html = `<colgroup><col style="width:24%;"><col style="width:15%;"><col style="width:11%;"><col style="width:11%;"><col style="width:11%;"><col style="width:11%;"><col style="width:8%;"><col style="width:9%;"></colgroup>`;
+  html += `<thead><tr><th>Bolsa contratada</th><th>Vigencia</th><th style="text-align:right;">Allowance</th><th style="text-align:right;">Consumido Prod.</th><th style="text-align:right;">Consumido Sandbox</th><th style="text-align:right;">Total consumido</th><th style="text-align:right;">% usado</th><th style="text-align:right;">Restante</th></tr></thead><tbody>`;
+  ALLOWANCE_ROWS.forEach(r => {
+    const consumed = r.prod + r.sandbox;
+    const pctUsed = r.allowance ? Math.round((consumed/r.allowance)*100) : 0;
+    const remaining = r.allowance - consumed;
+    html += `<tr>
+      <td>${r.name}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.vigencia}</td>
+      <td class="num">${fmtN(r.allowance)}</td>
+      <td class="num">${fmtN(r.prod)}</td>
+      <td class="num">${fmtN(r.sandbox)}</td>
+      <td class="num">${fmtN(consumed)}</td>
+      <td class="num">${fmtPct(pctUsed)}</td>
+      <td class="num">${fmtN(remaining)}</td>
+    </tr>
+    <tr class="notcovered"><td colspan="8" class="notecell">${r.note}</td></tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildEinsteinDetailTable(){
+  const table = document.getElementById('einsteinDetailTable');
+  const totalCredits = EINSTEIN_STANDARD_DETAIL.reduce((a,r)=>a+r.credits,0);
+  let html = `<colgroup><col style="width:20%;"><col style="width:36%;"><col style="width:12%;"><col style="width:10%;"><col style="width:11%;"><col style="width:11%;"></colgroup>`;
+  html += `<thead><tr><th>Feature</th><th>Qué es</th><th style="text-align:right;">Créditos</th><th style="text-align:right;">Eventos</th><th>Primera actividad</th><th>Última actividad</th></tr></thead><tbody>`;
+  EINSTEIN_STANDARD_DETAIL.forEach(r => {
+    html += `<tr>
+      <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">${r.feature}</td>
+      <td>${r.label}</td>
+      <td class="num">${fmtN(r.credits)}</td>
+      <td class="num">${fmtN(r.events)}</td>
+      <td>${r.first}</td>
+      <td>${r.last}</td>
+    </tr>`;
+  });
+  html += `<tr style="font-weight:700;border-top:2px solid var(--border);">
+    <td colspan="2">Total</td><td class="num">${fmtN(totalCredits)}</td><td class="num"></td><td></td><td></td>
+  </tr>`;
+  html += '</tbody>';
+  table.innerHTML = html;
+
+  const note = document.getElementById('einsteinDetailNote');
+  const copilotPct = Math.round((716602/totalCredits)*100);
+  note.innerHTML = `<b>Conclusión:</b> ${fmtPct(copilotPct)} de todo el histórico de "Modelo anterior de IA" (${fmtN(716602)} de ${fmtN(totalCredits)} créditos) vino de <b>CopilotForDigitalChannels</b> — el motor del asistente de lealtad — ejecutándose en Sandbox entre el 30 de octubre de 2025 y el 14 de febrero de 2026. Esa ventana corresponde a la fase de configuración y pruebas previa al arranque del asistente, no a conversaciones con clientes reales. El resto es actividad puntual de Prompt Builder y herramientas de IA dentro de Flow, usadas por el equipo de implementación.`;
+}
+
 function buildActionsTable(mode){
   const table = document.getElementById('actionsTable');
   const rows = mode === 'week' ? ASISTENTE_WEEKLY : ASISTENTE_MONTHLY;
   const colLabel = mode === 'week' ? 'Semana (inicia)' : 'Mes';
   const totalLabel = mode === 'week' ? 'Total (16 feb – 14 sep 2026)' : 'Total (feb – sep 2026)';
-  let html = `<thead><tr><th>${colLabel}</th><th style="text-align:right;">Créditos consumidos</th><th style="text-align:right;">Acciones equivalentes (÷ 20)</th></tr></thead><tbody>`;
-  let totalCreditos = 0, totalAcciones = 0;
+  let html = `<colgroup><col style="width:20%;"><col style="width:16%;"><col style="width:16%;"><col style="width:16%;"><col style="width:16%;"><col style="width:16%;"></colgroup>`;
+  html += `<thead><tr><th>${colLabel}</th><th style="text-align:right;">Créditos Producción</th><th style="text-align:right;">Créditos Sandbox</th><th style="text-align:right;">Total créditos</th><th style="text-align:right;">Acciones equivalentes</th></tr></thead><tbody>`;
+  let totalCreditos = 0, totalAcciones = 0, totalProd = 0, totalSandbox = 0;
   rows.forEach(m => {
-    const acciones = m.creditos / 20;
+    const sandbox = m.creditos - m.prod;
+    const acciones = (m.prod / 20) + (sandbox / 16);
     totalCreditos += m.creditos;
     totalAcciones += acciones;
+    totalProd += m.prod;
+    totalSandbox += sandbox;
     html += `<tr>
       <td>${m.mes}</td>
+      <td class="num">${fmtN(m.prod)}</td>
+      <td class="num">${fmtN(sandbox)}</td>
       <td class="num">${fmtN(m.creditos)}</td>
       <td class="num">${fmtN(acciones)}</td>
     </tr>`;
   });
-  html += `<tr style="font-weight:600;"><td>${totalLabel}</td><td class="num">${fmtN(totalCreditos)}</td><td class="num">${fmtN(totalAcciones)}</td></tr>`;
+  html += `<tr style="font-weight:600;"><td>${totalLabel}</td><td class="num">${fmtN(totalProd)}</td><td class="num">${fmtN(totalSandbox)}</td><td class="num">${fmtN(totalCreditos)}</td><td class="num">${fmtN(totalAcciones)}</td></tr>`;
   html += '</tbody>';
   table.innerHTML = html;
 }
@@ -544,10 +734,14 @@ function wireToggle(id, onChange){
 }
 
 buildSummary();
+buildOrgSplitCard();
 buildRateTable();
 buildActionsTable('week');
 buildExplainTable();
+buildEntitlementTable();
 buildConversationsNote();
+buildAllowanceTable();
+buildEinsteinDetailTable();
 buildChartGrid('week');
 wireToggle('actionsToggle', buildActionsTable);
 wireToggle('chartToggle', buildChartGrid);
